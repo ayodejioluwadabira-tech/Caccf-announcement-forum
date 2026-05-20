@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAC Campus Fellowship Portal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .bg-gradient { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+    </style>
+</head>
+<body class="bg-gradient min-h-screen font-sans p-4 text-gray-800">
+
+    <div id="app" class="max-w-4xl mx-auto my-6">
+        
+        <div class="flex justify-center space-x-4 mb-6">
+            <button @click="currentTab = 'form'" :class="currentTab === 'form' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'" class="px-4 py-2 rounded-lg font-bold shadow transition cursor-pointer">
+                📢 Member Submission Form
+            </button>
+            <button @click="currentTab = 'admin'" :class="currentTab === 'admin' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800 border border-gray-800'" class="px-4 py-2 rounded-lg font-bold shadow transition cursor-pointer">
+                🛡️ Executive Control Center
+            </button>
+        </div>
+
+        <div v-if="currentTab === 'form'" class="bg-white max-w-xl mx-auto p-6 rounded-xl shadow-lg border border-gray-100">
+            <header class="text-center border-b pb-4 mb-6">
+                <h1 class="text-2xl font-bold text-blue-600">CAC Campus Fellowship</h1>
+                <p class="text-gray-500 text-sm mt-1">Service Announcement & Testimony Portal</p>
+                <div class="mt-2 text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full inline-block font-medium">
+                    ⏰ Today's Cutoff Time: {{ formatTime(cutoffHour, cutoffMinute) }}
+                </div>
+            </header>
+
+            <div v-if="isFormLocked" class="bg-red-100 text-red-700 p-4 text-center rounded-lg font-semibold">
+                🔒 Portal Locked. The cutoff time ({{ formatTime(cutoffHour, cutoffMinute) }}) has passed. Submissions are closed.
+            </div>
+
+            <div v-else-if="submissionSuccess" class="bg-green-100 text-green-700 p-6 text-center rounded-lg">
+                <p class="text-xl font-bold">🎉 Submitted Successfully!</p>
+                <p class="text-sm mt-2">Thank you! Your details have been securely updated in the service matrix.</p>
+                <button @click="submissionSuccess = false" class="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition">
+                    Submit Another Entry
+                </button>
+            </div>
+
+            <form v-else @submit.prevent="handleSubmit" class="space-y-4">
+                <p v-if="errorMessage" class="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-200">{{ errorMessage }}</p>
+
+                <div>
+                    <label class="block text-sm font-semibold mb-1">What would you like to submit? *</label>
+                    <div class="grid grid-cols-2 gap-2 mt-1">
+                        <label v-for="cat in ['Testimony', 'Announcement', 'Greeting / Birthday', 'Awareness']" class="flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50" :class="form.category === cat ? 'border-blue-500 bg-blue-50/50' : ''">
+                            <input type="radio" v-model="form.category" :value="cat" @change="handleCategoryChange" required />
+                            <span class="text-sm font-medium">{{ cat }}</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div v-if="form.category" class="space-y-4 border-t pt-4 border-gray-100">
+                    
+                    <div v-if="form.category === 'Testimony'" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Your Name *</label>
+                            <input type="text" v-model="form.name" required class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter your full name" />
+                        </div>
+                    </div>
+
+                    <div v-if="form.category === 'Announcement' || form.category === 'Greeting / Birthday'" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Who is making this submission? *</label>
+                            <div class="grid grid-cols-3 gap-2 mt-1">
+                                <label v-for="source in ['Unit', 'Committee', 'Personal']" class="flex items-center justify-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50" :class="submissionSource === source ? 'border-blue-500 bg-blue-50/50' : ''">
+                                    <input type="radio" v-model="submissionSource" :value="source" required />
+                                    <span class="text-sm font-medium">{{ source }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div v-if="submissionSource === 'Unit'">
+                            <label class="block text-sm font-semibold mb-1">Select your Unit *</label>
+                            <select v-model="form.unit" required class="w-full border p-2 rounded-lg bg-white">
+                                <option value="">-- Choose Unit --</option>
+                                <option value="Choir">Choir</option>
+                                <option value="Ushers">Ushers</option>
+                                <option value="Prayer">Prayer Clan</option>
+                                <option value="Technical">Technical/Media</option>
+                                <option value="Evangelism">Evangelism</option>
+                            </select>
+                        </div>
+
+                        <div v-if="submissionSource === 'Committee'">
+                            <label class="block text-sm font-semibold mb-1">Committee Name *</label>
+                            <input type="text" v-model="form.committee" required class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., Welfare, Organizing Committee" />
+                        </div>
+
+                        <div v-if="submissionSource === 'Personal'">
+                            <label class="block text-sm font-semibold mb-1">Your Name *</label>
+                            <input type="text" v-model="form.name" required class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter your full name" />
+                        </div>
+                    </div>
+
+                    <div v-if="form.category === 'Awareness'" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Who is creating this Awareness? *</label>
+                            <div class="grid grid-cols-2 gap-2 mt-1">
+                                <label v-for="source in ['Unit', 'Committee']" class="flex items-center justify-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50" :class="submissionSource === source ? 'border-blue-500 bg-blue-50/50' : ''">
+                                    <input type="radio" v-model="submissionSource" :value="source" required />
+                                    <span class="text-sm font-medium">{{ source }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div v-if="submissionSource === 'Unit'">
+                            <label for="unit-select" class="block text-sm font-semibold mb-1">Select your Unit *</label>
+                            <select id="unit-select" v-model="form.unit" required title="Select your Unit" class="w-full border p-2 rounded-lg bg-white">
+                                <option value="">-- Choose Unit --</option>
+                                <option value="Choir">Choir</option>
+                                <option value="Ushers">Ushers</option>
+                                <option value="Prayer">Prayer Clan</option>
+                                <option value="Technical">Technical/Media</option>
+                                <option value="Evangelism">Evangelism</option>
+                            </select>
+                        </div>
+
+                        <div v-if="submissionSource === 'Committee'">
+                            <label class="block text-sm font-semibold mb-1">Committee Name *</label>
+                            <input type="text" v-model="form.committee" required class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., Welfare, Organizing Committee" />
+                        </div>
+                    </div>
+
+                    <div v-if="submissionSource === 'Personal' || form.category === 'Testimony'">
+                        <label class="block text-sm font-semibold mb-1">Academic Level *</label>
+                        <select v-model="form.academic_level" required title="Academic Level" class="w-full border p-2 rounded-lg bg-white">
+                            <option value="">Select Level</option>
+                            <option value="100L">100L</option>
+                            <option value="200L">200L</option>
+                            <option value="300L">300L</option>
+                            <option value="400L">400L</option>
+                            <option value="500L">500L</option>
+                        </select>
+                    </div>
+
+                    <div v-if="form.category === 'Testimony' || submissionSource">
+                        <label class="block text-sm font-semibold mb-1">Content to Pass Across *</label>
+                        <textarea v-model="form.content" required rows="4" maxlength="600" class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State your matter clearly here (Max 600 characters)..."></textarea>
+                    </div>
+
+                    <div v-if="form.category === 'Testimony' || submissionSource" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" v-model="form.wants_to_present" class="w-4 h-4 rounded text-blue-600" />
+                            <div>
+                                <span class="text-sm font-semibold block">Request Physical Presentation</span>
+                                <span class="text-xs text-gray-500">Check this if you would like the opportunity to present this live on stage.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <button v-if="form.category === 'Testimony' || submissionSource" type="submit" :disabled="isSubmitting" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-lg transition disabled:opacity-50 cursor-pointer">
+                        {{ isSubmitting ? 'Processing Submission...' : 'Submit Entry' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div v-if="currentTab === 'admin'" class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            
+            <div class="bg-gray-800 text-white p-4 rounded-xl mb-6 shadow-md">
+                <h2 class="text-sm font-bold text-blue-400 mb-2">⚙️ Dynamic Cutoff Adjustment</h2>
+                <div class="flex items-center space-x-4">
+                    <label class="text-xs text-gray-300">Hour (0-23): 
+                        <input type="number" v-model.number="cutoffHour" min="0" max="23" @change="saveSettings" class="bg-gray-700 w-16 p-1 rounded font-mono text-center text-white ml-1">
+                    </label>
+                    <label class="text-xs text-gray-300">Minute (0-59): 
+                        <input type="number" v-model.number="cutoffMinute" min="0" max="59" @change="saveSettings" class="bg-gray-700 w-16 p-1 rounded font-mono text-center text-white ml-1">
+                    </label>
+                </div>
+            </div>
+
+            <header class="flex justify-between items-center border-b pb-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">🛡️ Executive Control Center</h1>
+                    <p class="text-sm text-gray-500">Reviewing real-time updates for today's service orders</p>
+                </div>
+                <button @click="fetchSubmissions" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow transition cursor-pointer">
+                    🔄 Refresh Feed
+                </button>
+            </header>
+
+            <div v-if="isLoading" class="text-center text-gray-500 py-8">Parsing fellowship records matrix...</div>
+            
+            <div v-else class="overflow-x-auto rounded-xl border border-gray-200">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 border-b text-sm font-semibold text-gray-700">
+                            <th class="p-4">Submission Label</th>
+                            <th class="p-4">Category</th>
+                            <th class="p-4">Content</th>
+                            <th class="p-4 text-center">Stage Request?</th>
+                            <th class="p-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 text-sm text-gray-600">
+                        <tr v-for="row in submissions" :key="row.id" :class="row.is_approved ? 'bg-green-50/70' : 'hover:bg-gray-50'">
+                            <td class="p-4">
+                                <div class="font-bold text-gray-900">{{ row.name }}</div>
+                                <div class="text-xs text-gray-500">
+                                    <span v-if="row.unit">🏢 Unit: {{ row.unit }}</span>
+                                    <span v-else-if="row.committee">⚙️ Committee: {{ row.committee }}</span>
+                                    <span v-else>👤 Personal</span>
+                                    <span v-if="row.academic_level"> • {{ row.academic_level }}</span>
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                    {{ row.category }}
+                                </span>
+                            </td>
+                            <td class="p-4 max-w-md break-words whitespace-pre-wrap text-gray-700">{{ row.content }}</td>
+                            <td class="p-4 text-center font-bold text-gray-900">{{ row.wants_to_present ? '🎤 YES' : '❌ NO' }}</td>
+                            <td class="p-4 text-center">
+                                <button @click="toggleApproval(row.id, row.is_approved)" :class="row.is_approved ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">
+                                    {{ row.is_approved ? '✓ Approved' : 'Grant Stage' }}
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- BACKEND SECURITY CONFIGURATION ---
+        const SUPABASE_URL = "https://ussvicufmaeqoqgczlmz.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzc3ZpY3VmbWFlcW9xZ2N6bG16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjg2MjMsImV4cCI6MjA5NDcwNDYyM30.dBzS3IzHFbXPARsOo23ESwQ7_A60sxPT5d6C-XiW5Uo";
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const currentTab = ref('form');
+                const isFormLocked = ref(false);
+                const submissionSuccess = ref(false);
+                const errorMessage = ref('');
+                const isSubmitting = ref(false);
+                const isLoading = ref(false);
+                const submissions = ref([]);
+                const submissionSource = ref(''); 
+
+                // Cutoff time values (Persisted in LocalStorage)
+                const cutoffHour = ref(17);
+                const cutoffMinute = ref(0);
+
+                const form = ref({
+                    name: '',
+                    unit: '',
+                    academic_level: '',
+                    committee: '',
+                    category: '',
+                    content: '',
+                    wants_to_present: false
+                });
+
+                const formatTime = (h, m) => {
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const displayHour = h % 12 || 12;
+                    return `${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                };
+
+                const handleCategoryChange = () => {
+                    submissionSource.value = '';
+                    form.value.name = '';
+                    form.value.unit = '';
+                    form.value.committee = '';
+                    form.value.academic_level = '';
+                    form.value.content = '';
+                    form.value.wants_to_present = false;
+                };
+
+                const checkTimeLock = () => {
+                    const now = new Date();
+                    if (now.getHours() > cutoffHour.value || (now.getHours() === cutoffHour.value && now.getMinutes() >= cutoffMinute.value)) {
+                        isFormLocked.value = true;
+                    } else {
+                        isFormLocked.value = false;
+                    }
+                };
+
+                const saveSettings = () => {
+                    localStorage.setItem('fellowship_hour', cutoffHour.value);
+                    localStorage.setItem('fellowship_minute', cutoffMinute.value);
+                    checkTimeLock();
+                };
+
+                const handleSubmit = async () => {
+                    checkTimeLock();
+                    if (isFormLocked.value) {
+                        errorMessage.value = "Submissions for today's service are now closed.";
+                        return;
+                    }
+
+                    isSubmitting.value = true;
+                    errorMessage.value = '';
+
+                    // Label formatting exactly based on chosen source structure
+                    let finalName = '';
+                    if (form.value.category === 'Testimony' || submissionSource.value === 'Personal') {
+                        finalName = form.value.name;
+                    } else if (submissionSource.value === 'Unit') {
+                        finalName = `Unit: ${form.value.unit}`;
+                    } else if (submissionSource.value === 'Committee') {
+                        finalName = `Committee: ${form.value.committee}`;
+                    }
+
+                    const dataPayload = {
+                        category: form.value.category,
+                        content: form.value.content,
+                        wants_to_present: form.value.wants_to_present,
+                        name: finalName,
+                        unit: submissionSource.value === 'Unit' ? form.value.unit : '',
+                        committee: submissionSource.value === 'Committee' ? form.value.committee : '',
+                        academic_level: (form.value.category === 'Testimony' || submissionSource.value === 'Personal') ? form.value.academic_level : ''
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('fellowship_submissions')
+                        .insert([dataPayload]);
+
+                    isSubmitting.value = false;
+
+                    if (error) {
+                        errorMessage.value = "Database update failed. Check your Supabase configuration.";
+                    } else {
+                        submissionSuccess.value = true;
+                        handleCategoryChange();
+                        form.value.category = '';
+                        fetchSubmissions();
+                    }
+                };
+
+                const fetchSubmissions = async () => {
+                    isLoading.value = true;
+                    const { data, error } = await supabaseClient
+                        .from('fellowship_submissions')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+
+                    if (!error && data) submissions.value = data;
+                    isLoading.value = false;
+                };
+
+                const toggleApproval = async (id, currentStatus) => {
+                    const { error } = await supabaseClient
+                        .from('fellowship_submissions')
+                        .update({ is_approved: !currentStatus })
+                        .eq('id', id);
+
+                    if (!error) {
+                        submissions.value = submissions.value.map(s => s.id === id ? { ...s, is_approved: !currentStatus } : s);
+                    }
+                };
+
+                onMounted(() => {
+                    // Load any saved admin hours from local cache
+                    if (localStorage.getItem('fellowship_hour') !== null) {
+                        cutoffHour.value = parseInt(localStorage.getItem('fellowship_hour'));
+                    }
+                    if (localStorage.getItem('fellowship_minute') !== null) {
+                        cutoffMinute.value = parseInt(localStorage.getItem('fellowship_minute'));
+                    }
+                    
+                    checkTimeLock();
+                    setInterval(checkTimeLock, 10000);
+                    fetchSubmissions();
+                });
+
+                return {
+                    currentTab, isFormLocked, submissionSuccess, errorMessage, isSubmitting, isLoading, form, submissionSource, cutoffHour, cutoffMinute, submissions, formatTime, handleCategoryChange, saveSettings, handleSubmit, fetchSubmissions, toggleApproval
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
