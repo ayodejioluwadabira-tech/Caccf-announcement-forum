@@ -19,7 +19,7 @@
             <button @click="currentTab = 'form'" :class="currentTab === 'form' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-600'" class="px-4 py-2 rounded-lg font-bold shadow transition cursor-pointer">
                 📢 Member Submission Form
             </button>
-            <button @click="currentTab = 'admin'" :class="currentTab === 'admin' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800 border border-gray-800'" class="px-4 py-2 rounded-lg font-bold shadow transition cursor-pointer">
+            <button @click="handleAdminTabClick" :class="currentTab === 'admin' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800 border border-gray-800'" class="px-4 py-2 rounded-lg font-bold shadow transition cursor-pointer">
                 🛡️ Executive Control Center
             </button>
         </div>
@@ -28,19 +28,28 @@
             <header class="text-center border-b pb-4 mb-6">
                 <h1 class="text-2xl font-bold text-blue-600">CAC Campus Fellowship</h1>
                 <p class="text-gray-500 text-sm mt-1">Service Announcement & Testimony Portal</p>
-                <div class="mt-2 text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full inline-block font-medium">
-                    ⏰ Today's Cutoff Time: {{ formatTime(cutoffHour, cutoffMinute) }}
+                <div class="mt-2 flex flex-col items-center gap-1">
+                    <span class="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                        Active Target Date: {{ activeServiceDate || 'Not Set' }}
+                    </span>
+                    <span class="text-xs bg-gray-100 text-gray-600 px-3 py-0.5 rounded-full font-mono">
+                        Cutoff Window: {{ formatTime(cutoffHour, cutoffMinute) }}
+                    </span>
                 </div>
             </header>
 
-            <div v-if="isFormLocked" class="bg-red-100 text-red-700 p-4 text-center rounded-lg font-semibold">
-                🔒 Portal Locked. The cutoff time ({{ formatTime(cutoffHour, cutoffMinute) }}) has passed. Submissions are closed.
+            <div v-if="isPortalLockedByDate" class="bg-amber-100 text-amber-800 p-4 text-center rounded-lg font-semibold border border-amber-200">
+                📅 Portal Unavailable. The form is scheduled for use on {{ activeServiceDate }}. Today is not service day.
             </div>
 
-            <div v-else-if="submissionSuccess" class="bg-green-100 text-green-700 p-6 text-center rounded-lg">
+            <div v-else-if="isFormLocked" class="bg-red-100 text-red-700 p-4 text-center rounded-lg font-semibold border border-red-200">
+                🔒 Portal Locked. The cutoff time ({{ formatTime(cutoffHour, cutoffMinute) }}) has passed for today's service operations.
+            </div>
+
+            <div v-else-if="submissionSuccess" class="bg-green-100 text-green-700 p-6 text-center rounded-lg border border-green-200">
                 <p class="text-xl font-bold">🎉 Submitted Successfully!</p>
                 <p class="text-sm mt-2">Thank you! Your details have been securely updated in the service matrix.</p>
-                <button @click="submissionSuccess = false" class="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition">
+                <button @click="submissionSuccess = false" class="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition cursor-pointer">
                     Submit Another Entry
                 </button>
             </div>
@@ -79,14 +88,20 @@
                         </div>
 
                         <div v-if="submissionSource === 'Unit'">
-                            <label class="block text-sm font-semibold mb-1">Select your Unit *</label>
-                            <select v-model="form.unit" required class="w-full border p-2 rounded-lg bg-white">
+                            <label class="block text-sm font-semibold mb-1" for="form-unit">Select your Unit *</label>
+                            <select id="form-unit" v-model="form.unit" required class="w-full border p-2 rounded-lg bg-white">
                                 <option value="">-- Choose Unit --</option>
                                 <option value="Choir">Choir</option>
-                                <option value="Ushers">Ushers</option>
-                                <option value="Prayer">Prayer Clan</option>
-                                <option value="Technical">Technical/Media</option>
-                                <option value="Evangelism">Evangelism</option>
+                                <option value="Ushering">Ushering</option>
+                                <option value="Prayer">Prayer</option>
+                                <option value="Organizing">Organizing</option>
+                                <option value="Welfare">Welfare</option>
+                                <option value="Bible study">Bible study</option>
+                                <option value="Library">Library</option>
+                                <option value="Drama">Drama</option>
+                                <option value="Publicity">Publicity</option>
+
+
                             </select>
                         </div>
 
@@ -114,13 +129,17 @@
 
                         <div v-if="submissionSource === 'Unit'">
                             <label for="unit-select" class="block text-sm font-semibold mb-1">Select your Unit *</label>
-                            <select id="unit-select" v-model="form.unit" required title="Select your Unit" class="w-full border p-2 rounded-lg bg-white">
+                            <select id="unit-select" v-model="form.unit" required class="w-full border p-2 rounded-lg bg-white">
                                 <option value="">-- Choose Unit --</option>
                                 <option value="Choir">Choir</option>
-                                <option value="Ushers">Ushers</option>
-                                <option value="Prayer">Prayer Clan</option>
-                                <option value="Technical">Technical/Media</option>
-                                <option value="Evangelism">Evangelism</option>
+                                <option value="Ushering">Ushering</option>
+                                <option value="Prayer">Prayer</option>
+                                <option value="Organizing">Organizing</option>
+                                <option value="Welfare">Welfare</option>
+                                <option value="Bible study">Bible study</option>
+                                <option value="Library">Library</option>
+                                <option value="Drama">Drama</option>
+                                <option value="Publicity">Publicity</option>
                             </select>
                         </div>
 
@@ -131,8 +150,8 @@
                     </div>
 
                     <div v-if="submissionSource === 'Personal' || form.category === 'Testimony'">
-                        <label class="block text-sm font-semibold mb-1">Academic Level *</label>
-                        <select v-model="form.academic_level" required title="Academic Level" class="w-full border p-2 rounded-lg bg-white">
+                        <label for="academic-level-select" class="block text-sm font-semibold mb-1">Academic Level *</label>
+                        <select id="academic-level-select" v-model="form.academic_level" required class="w-full border p-2 rounded-lg bg-white">
                             <option value="">Select Level</option>
                             <option value="100L">100L</option>
                             <option value="200L">200L</option>
@@ -164,18 +183,36 @@
             </form>
         </div>
 
-        <div v-if="currentTab === 'admin'" class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        <div v-if="currentTab === 'admin' && isAdminAuthenticated" class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
             
-            <div class="bg-gray-800 text-white p-4 rounded-xl mb-6 shadow-md">
-                <h2 class="text-sm font-bold text-blue-400 mb-2">⚙️ Dynamic Cutoff Adjustment</h2>
-                <div class="flex items-center space-x-4">
-                    <label class="text-xs text-gray-300">Hour (0-23): 
-                        <input type="number" v-model.number="cutoffHour" min="0" max="23" @change="saveSettings" class="bg-gray-700 w-16 p-1 rounded font-mono text-center text-white ml-1">
-                    </label>
-                    <label class="text-xs text-gray-300">Minute (0-59): 
-                        <input type="number" v-model.number="cutoffMinute" min="0" max="59" @change="saveSettings" class="bg-gray-700 w-16 p-1 rounded font-mono text-center text-white ml-1">
+            <div class="bg-gray-800 text-white p-4 rounded-xl mb-6 shadow-md grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <h2 class="text-sm font-bold text-blue-400 mb-2">⚙️ Operational Date Control</h2>
+                    <label class="text-xs text-gray-300 block">Form Active Only On This Day:
+                        <input type="date" v-model="activeServiceDate" @change="saveSettings" class="bg-gray-700 w-full mt-1 p-2 rounded text-white outline-none">
                     </label>
                 </div>
+                <div>
+                    <h2 class="text-sm font-bold text-blue-400 mb-2">⏱️ Cutoff Window Adjustment</h2>
+                    <div class="flex space-x-2 mt-1">
+                        <label class="text-xs text-gray-300 flex-1">Hour (0-23): 
+                            <input type="number" v-model.number="cutoffHour" min="0" max="23" @change="saveSettings" class="bg-gray-700 w-full p-2 mt-1 rounded text-center text-white outline-none">
+                        </label>
+                        <label class="text-xs text-gray-300 flex-1">Minute (0-59): 
+                            <input type="number" v-model.number="cutoffMinute" min="0" max="59" @change="saveSettings" class="bg-gray-700 w-full p-2 mt-1 rounded text-center text-white outline-none">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold text-blue-900">📥 Data Management Extraction</h3>
+                    <p class="text-xs text-blue-700">Download Excel-compatible records matching: <strong class="font-mono">{{ activeServiceDate }}</strong></p>
+                </div>
+                <button @click="downloadDailyCSV" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow-sm transition cursor-pointer flex items-center gap-1">
+                    📊 Download Daily Report (CSV)
+                </button>
             </div>
 
             <header class="flex justify-between items-center border-b pb-4 mb-6">
@@ -183,9 +220,14 @@
                     <h1 class="text-2xl font-bold text-gray-800">🛡️ Executive Control Center</h1>
                     <p class="text-sm text-gray-500">Reviewing real-time updates for today's service orders</p>
                 </div>
-                <button @click="fetchSubmissions" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow transition cursor-pointer">
-                    🔄 Refresh Feed
-                </button>
+                <div class="flex gap-2">
+                    <button @click="logoutAdmin" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 text-sm font-medium transition cursor-pointer">
+                        🔒 Lock Panel
+                    </button>
+                    <button @click="fetchSubmissions" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow transition cursor-pointer">
+                        🔄 Refresh Feed
+                    </button>
+                </div>
             </header>
 
             <div v-if="isLoading" class="text-center text-gray-500 py-8">Parsing fellowship records matrix...</div>
@@ -195,10 +237,10 @@
                     <thead>
                         <tr class="bg-gray-100 border-b text-sm font-semibold text-gray-700">
                             <th class="p-4">Submission Label</th>
-                            <th class="p-4">Category</th>
+                            <th class="p-4">Time & Day</th>
                             <th class="p-4">Content</th>
-                            <th class="p-4 text-center">Stage Request?</th>
-                            <th class="p-4 text-center">Action</th>
+                            <th class="p-4 text-center">Stage Action</th>
+                            <th class="p-4 text-center">Clear Data</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 text-sm text-gray-600">
@@ -206,22 +248,32 @@
                             <td class="p-4">
                                 <div class="font-bold text-gray-900">{{ row.name }}</div>
                                 <div class="text-xs text-gray-500">
-                                    <span v-if="row.unit">🏢 Unit: {{ row.unit }}</span>
-                                    <span v-else-if="row.committee">⚙️ Committee: {{ row.committee }}</span>
+                                    <span v-if="row.unit">🏢 {{ row.unit }}</span>
+                                    <span v-else-if="row.committee">⚙️ {{ row.committee }}</span>
                                     <span v-else>👤 Personal</span>
                                     <span v-if="row.academic_level"> • {{ row.academic_level }}</span>
                                 </div>
-                            </td>
-                            <td class="p-4">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                <span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-blue-100 text-blue-800">
                                     {{ row.category }}
                                 </span>
                             </td>
+                            <td class="p-4 font-mono text-xs text-gray-500 whitespace-nowrap">
+                                {{ formatTimestamp(row.created_at) }}
+                            </td>
                             <td class="p-4 max-w-md break-words whitespace-pre-wrap text-gray-700">{{ row.content }}</td>
-                            <td class="p-4 text-center font-bold text-gray-900">{{ row.wants_to_present ? '🎤 YES' : '❌ NO' }}</td>
+                            <td class="p-4 text-center whitespace-nowrap">
+                                <div v-if="row.wants_to_present">
+                                    <button @click="toggleApproval(row.id, row.is_approved)" :class="row.is_approved ? 'bg-green-600 text-white shadow-sm' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'" class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">
+                                        {{ row.is_approved ? '✓ Approved on Stage' : '🎤 Grant Stage' }}
+                                    </button>
+                                </div>
+                                <div v-else class="text-xs text-gray-400 italic">
+                                    No Stage Requested
+                                </div>
+                            </td>
                             <td class="p-4 text-center">
-                                <button @click="toggleApproval(row.id, row.is_approved)" :class="row.is_approved ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'" class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition">
-                                    {{ row.is_approved ? '✓ Approved' : 'Grant Stage' }}
+                                <button @click="deleteRow(row.id)" class="text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer">
+                                    🗑️ Delete
                                 </button>
                             </td>
                         </tr>
@@ -237,6 +289,9 @@
         const SUPABASE_URL = "https://ussvicufmaeqoqgczlmz.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzc3ZpY3VmbWFlcW9xZ2N6bG16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjg2MjMsImV4cCI6MjA5NDcwNDYyM30.dBzS3IzHFbXPARsOo23ESwQ7_A60sxPT5d6C-XiW5Uo";
 
+        // --- MASTER ADMIN SECURITY KEY ---
+        const EXECUTIVE_PASSWORD = "CACCF-EXCO-2026"; 
+
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const { createApp, ref, onMounted } = Vue;
@@ -245,31 +300,56 @@
             setup() {
                 const currentTab = ref('form');
                 const isFormLocked = ref(false);
+                const isPortalLockedByDate = ref(false);
                 const submissionSuccess = ref(false);
                 const errorMessage = ref('');
                 const isSubmitting = ref(false);
                 const isLoading = ref(false);
                 const submissions = ref([]);
                 const submissionSource = ref(''); 
+                const isAdminAuthenticated = ref(false);
 
-                // Cutoff time values (Persisted in LocalStorage)
-                const cutoffHour = ref(17);
-                const cutoffMinute = ref(0);
+                const cutoffHour = ref(18);
+                const cutoffMinute = ref(15);
+                const activeServiceDate = ref('');
 
                 const form = ref({
-                    name: '',
-                    unit: '',
-                    academic_level: '',
-                    committee: '',
-                    category: '',
-                    content: '',
-                    wants_to_present: false
+                    name: '', unit: '', academic_level: '', committee: '', category: '', content: '', wants_to_present: false
                 });
 
                 const formatTime = (h, m) => {
                     const ampm = h >= 12 ? 'PM' : 'AM';
                     const displayHour = h % 12 || 12;
                     return `${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                };
+
+                const formatTimestamp = (isoString) => {
+                    if (!isoString) return 'N/A';
+                    const dateObj = new Date(isoString);
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return `${days[dateObj.getDay()]}, ${dateObj.toLocaleDateString()} @ ${timeString}`;
+                };
+
+                const handleAdminTabClick = () => {
+                    if (isAdminAuthenticated.value) {
+                        currentTab.value = 'admin';
+                        fetchSubmissions();
+                    } else {
+                        const credentialInput = prompt("🛡️ Security Access Required.\nEnter the Executive Dashboard Password:");
+                        if (credentialInput === EXECUTIVE_PASSWORD) {
+                            isAdminAuthenticated.value = true;
+                            currentTab.value = 'admin';
+                            fetchSubmissions();
+                        } else if (credentialInput !== null) {
+                            alert("❌ Access Denied. Invalid executive key code configuration.");
+                        }
+                    }
+                };
+
+                const logoutAdmin = () => {
+                    isAdminAuthenticated.value = false;
+                    currentTab.value = 'form';
                 };
 
                 const handleCategoryChange = () => {
@@ -282,8 +362,17 @@
                     form.value.wants_to_present = false;
                 };
 
-                const checkTimeLock = () => {
+                const checkTimeAndDateLocks = () => {
                     const now = new Date();
+                    if (activeServiceDate.value) {
+                        const localTodayStr = now.toISOString().split('T')[0]; 
+                        if (localTodayStr !== activeServiceDate.value) {
+                            isPortalLockedByDate.value = true;
+                            return;
+                        } else {
+                            isPortalLockedByDate.value = false;
+                        }
+                    }
                     if (now.getHours() > cutoffHour.value || (now.getHours() === cutoffHour.value && now.getMinutes() >= cutoffMinute.value)) {
                         isFormLocked.value = true;
                     } else {
@@ -294,20 +383,20 @@
                 const saveSettings = () => {
                     localStorage.setItem('fellowship_hour', cutoffHour.value);
                     localStorage.setItem('fellowship_minute', cutoffMinute.value);
-                    checkTimeLock();
+                    localStorage.setItem('fellowship_active_date', activeServiceDate.value);
+                    checkTimeAndDateLocks();
                 };
 
                 const handleSubmit = async () => {
-                    checkTimeLock();
-                    if (isFormLocked.value) {
-                        errorMessage.value = "Submissions for today's service are now closed.";
+                    checkTimeAndDateLocks();
+                    if (isPortalLockedByDate.value || isFormLocked.value) {
+                        errorMessage.value = "Submission processing blocked. Form is unavailable.";
                         return;
                     }
 
                     isSubmitting.value = true;
                     errorMessage.value = '';
 
-                    // Label formatting exactly based on chosen source structure
                     let finalName = '';
                     if (form.value.category === 'Testimony' || submissionSource.value === 'Personal') {
                         finalName = form.value.name;
@@ -334,7 +423,7 @@
                     isSubmitting.value = false;
 
                     if (error) {
-                        errorMessage.value = "Database update failed. Check your Supabase configuration.";
+                        errorMessage.value = "Database update failed. Check connection strings.";
                     } else {
                         submissionSuccess.value = true;
                         handleCategoryChange();
@@ -344,6 +433,7 @@
                 };
 
                 const fetchSubmissions = async () => {
+                    if (!isAdminAuthenticated.value) return;
                     isLoading.value = true;
                     const { data, error } = await supabaseClient
                         .from('fellowship_submissions')
@@ -365,22 +455,96 @@
                     }
                 };
 
+                // --- NEW OPTION: DELETE A PARTICULAR RECORD DATA ---
+                const deleteRow = async (id) => {
+                    if (!confirm("Are you completely sure you want to permanently delete this row data?")) return;
+                    
+                    const { error } = await supabaseClient
+                        .from('fellowship_submissions')
+                        .delete()
+                        .eq('id', id);
+
+                    if (!error) {
+                        submissions.value = submissions.value.filter(s => s.id !== id);
+                    } else {
+                        alert("Could not remove data row. Check RLS configuration.");
+                    }
+                };
+
+                // --- NEW OPTION: DOWNLOAD DATA FILTERED BY TARGET DAY ---
+                const downloadDailyCSV = () => {
+                    if (!activeServiceDate.value) {
+                        alert("Please configure an operational date constraint filter first.");
+                        return;
+                    }
+
+                    // Target filtering: Pulling records that match the active calendar setting day value
+                    const dayTargetRecords = submissions.value.filter(item => {
+                        if (!item.created_at) return false;
+                        return item.created_at.split('T')[0] === activeServiceDate.value;
+                    });
+
+                    if (dayTargetRecords.length === 0) {
+                        alert(`No submission database logs found for this day (${activeServiceDate.value})`);
+                        return;
+                    }
+
+                    // Clean string escaping wrapper function for CSV standard matching format
+                    const cleanCell = (text) => {
+                        if (text === null || text === undefined) return '""';
+                        let str = String(text).replace(/"/g, '""'); 
+                        return `"${str}"`;
+                    };
+
+                    // Define spreadsheet document row headers
+                    const csvHeaders = ["Submission ID", "Timestamp", "Category", "Identifier Sub-Label", "Content Body", "Stage Requested?", "Executive Approved?"];
+                    
+                    const csvRows = dayTargetRecords.map(r => [
+                        cleanCell(r.id),
+                        cleanCell(r.created_at),
+                        cleanCell(r.category),
+                        cleanCell(r.name),
+                        cleanCell(r.content),
+                        cleanCell(r.wants_to_present ? "YES" : "NO"),
+                        cleanCell(r.is_approved ? "YES" : "NO")
+                    ]);
+
+                    const csvContent = [csvHeaders, ...csvRows].map(e => e.join(",")).join("\n");
+                    
+                    // Create direct automated file anchor download instance pipeline
+                    const blobContext = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const objectUrl = URL.createObjectURL(blobContext);
+                    const systemLink = document.createElement("a");
+                    
+                    systemLink.setAttribute("href", objectUrl);
+                    systemLink.setAttribute("download", `Fellowship_Submissions_${activeServiceDate.value}.csv`);
+                    document.body.appendChild(systemLink);
+                    
+                    systemLink.click();
+                    document.body.removeChild(systemLink);
+                };
+
                 onMounted(() => {
-                    // Load any saved admin hours from local cache
                     if (localStorage.getItem('fellowship_hour') !== null) {
                         cutoffHour.value = parseInt(localStorage.getItem('fellowship_hour'));
                     }
                     if (localStorage.getItem('fellowship_minute') !== null) {
                         cutoffMinute.value = parseInt(localStorage.getItem('fellowship_minute'));
                     }
-                    
-                    checkTimeLock();
-                    setInterval(checkTimeLock, 10000);
+                    if (localStorage.getItem('fellowship_active_date') !== null) {
+                        activeServiceDate.value = localStorage.getItem('fellowship_active_date');
+                    }
+                    if (!activeServiceDate.value) {
+                        activeServiceDate.value = new Date().toISOString().split('T')[0];
+                    }
+
+                    checkTimeAndDateLocks();
+                    setInterval(checkTimeAndDateLocks, 5000);
                     fetchSubmissions();
                 });
 
                 return {
-                    currentTab, isFormLocked, submissionSuccess, errorMessage, isSubmitting, isLoading, form, submissionSource, cutoffHour, cutoffMinute, submissions, formatTime, handleCategoryChange, saveSettings, handleSubmit, fetchSubmissions, toggleApproval
+                    currentTab, isFormLocked, isPortalLockedByDate, submissionSuccess, errorMessage, isSubmitting, isLoading, form, submissionSource, cutoffHour, cutoffMinute, activeServiceDate, isAdminAuthenticated, submissions, formatTime, formatTimestamp, handleAdminTabClick, logoutAdmin, handleCategoryChange, saveSettings, handleSubmit, fetchSubmissions, toggleApproval, deleteRow, downloadDailyCSV
                 }
             }
         }).mount('#app');
