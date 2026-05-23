@@ -60,7 +60,7 @@
                 <div>
                     <label class="block text-sm font-semibold mb-1">What would you like to submit? *</label>
                     <div class="grid grid-cols-2 gap-2 mt-1">
-                        <label v-for="cat in ['Testimony', 'Announcement', 'Greeting / Birthday', 'Awareness']" class="flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50" :class="form.category === cat ? 'border-blue-500 bg-blue-50/50' : ''">
+                        <label v-for="cat in ['Testimony', 'Announcement', 'Greeting / Birthday', 'Awareness', 'Anonymous']" class="flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-gray-50" :class="form.category === cat ? 'border-blue-500 bg-blue-50/50' : ''">
                             <input type="radio" v-model="form.category" :value="cat" @change="handleCategoryChange" required />
                             <span class="text-sm font-medium">{{ cat }}</span>
                         </label>
@@ -88,8 +88,8 @@
                         </div>
 
                         <div v-if="submissionSource === 'Unit'">
-                            <label class="block text-sm font-semibold mb-1" for="form-unit">Select your Unit *</label>
-                            <select id="form-unit" v-model="form.unit" required class="w-full border p-2 rounded-lg bg-white">
+                            <label class="block text-sm font-semibold mb-1">Select your Unit *</label>
+                            <select v-model="form.unit" required title="Select your Unit" class="w-full border p-2 rounded-lg bg-white">
                                 <option value="">-- Choose Unit --</option>
                                 <option value="Choir">Choir</option>
                                 <option value="Ushering">Ushering</option>
@@ -100,8 +100,6 @@
                                 <option value="Library">Library</option>
                                 <option value="Drama">Drama</option>
                                 <option value="Publicity">Publicity</option>
-
-
                             </select>
                         </div>
 
@@ -142,16 +140,11 @@
                                 <option value="Publicity">Publicity</option>
                             </select>
                         </div>
-
-                        <div v-if="submissionSource === 'Committee'">
-                            <label class="block text-sm font-semibold mb-1">Committee Name *</label>
-                            <input type="text" v-model="form.committee" required class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g., Welfare, Organizing Committee" />
-                        </div>
                     </div>
 
                     <div v-if="submissionSource === 'Personal' || form.category === 'Testimony'">
-                        <label for="academic-level-select" class="block text-sm font-semibold mb-1">Academic Level *</label>
-                        <select id="academic-level-select" v-model="form.academic_level" required class="w-full border p-2 rounded-lg bg-white">
+                        <label for="academic_level" class="block text-sm font-semibold mb-1">Academic Level *</label>
+                        <select id="academic_level" v-model="form.academic_level" required class="w-full border p-2 rounded-lg bg-white">
                             <option value="">Select Level</option>
                             <option value="100L">100L</option>
                             <option value="200L">200L</option>
@@ -161,12 +154,12 @@
                         </select>
                     </div>
 
-                    <div v-if="form.category === 'Testimony' || submissionSource">
+                    <div v-if="form.category === 'Anonymous' || form.category === 'Testimony' || submissionSource">
                         <label class="block text-sm font-semibold mb-1">Content to Pass Across *</label>
                         <textarea v-model="form.content" required rows="4" maxlength="600" class="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="State your matter clearly here (Max 600 characters)..."></textarea>
                     </div>
 
-                    <div v-if="form.category === 'Testimony' || submissionSource" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div v-if="form.category !== 'Anonymous' && (form.category === 'Testimony' || submissionSource)" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
                         <label class="flex items-center space-x-3 cursor-pointer">
                             <input type="checkbox" v-model="form.wants_to_present" class="w-4 h-4 rounded text-blue-600" />
                             <div>
@@ -176,7 +169,7 @@
                         </label>
                     </div>
 
-                    <button v-if="form.category === 'Testimony' || submissionSource" type="submit" :disabled="isSubmitting" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-lg transition disabled:opacity-50 cursor-pointer">
+                    <button v-if="form.category === 'Anonymous' || form.category === 'Testimony' || submissionSource" type="submit" :disabled="isSubmitting" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-lg transition disabled:opacity-50 cursor-pointer">
                         {{ isSubmitting ? 'Processing Submission...' : 'Submit Entry' }}
                     </button>
                 </div>
@@ -250,10 +243,10 @@
                                 <div class="text-xs text-gray-500">
                                     <span v-if="row.unit">🏢 {{ row.unit }}</span>
                                     <span v-else-if="row.committee">⚙️ {{ row.committee }}</span>
-                                    <span v-else>👤 Personal</span>
+                                    <span v-else-if="row.name !== 'Anonymous Request'">👤 Personal</span>
                                     <span v-if="row.academic_level"> • {{ row.academic_level }}</span>
                                 </div>
-                                <span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-blue-100 text-blue-800">
+                                <span class="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded" :class="row.category === 'Anonymous' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
                                     {{ row.category }}
                                 </span>
                             </td>
@@ -397,8 +390,11 @@
                     isSubmitting.value = true;
                     errorMessage.value = '';
 
+                    // Automated alignment fallback mapping for Anonymous choice
                     let finalName = '';
-                    if (form.value.category === 'Testimony' || submissionSource.value === 'Personal') {
+                    if (form.value.category === 'Anonymous') {
+                        finalName = 'Anonymous Request';
+                    } else if (form.value.category === 'Testimony' || submissionSource.value === 'Personal') {
                         finalName = form.value.name;
                     } else if (submissionSource.value === 'Unit') {
                         finalName = `Unit: ${form.value.unit}`;
@@ -409,7 +405,7 @@
                     const dataPayload = {
                         category: form.value.category,
                         content: form.value.content,
-                        wants_to_present: form.value.wants_to_present,
+                        wants_to_present: form.value.category === 'Anonymous' ? false : form.value.wants_to_present,
                         name: finalName,
                         unit: submissionSource.value === 'Unit' ? form.value.unit : '',
                         committee: submissionSource.value === 'Committee' ? form.value.committee : '',
@@ -455,7 +451,6 @@
                     }
                 };
 
-                // --- NEW OPTION: DELETE A PARTICULAR RECORD DATA ---
                 const deleteRow = async (id) => {
                     if (!confirm("Are you completely sure you want to permanently delete this row data?")) return;
                     
@@ -471,14 +466,12 @@
                     }
                 };
 
-                // --- NEW OPTION: DOWNLOAD DATA FILTERED BY TARGET DAY ---
                 const downloadDailyCSV = () => {
                     if (!activeServiceDate.value) {
                         alert("Please configure an operational date constraint filter first.");
                         return;
                     }
 
-                    // Target filtering: Pulling records that match the active calendar setting day value
                     const dayTargetRecords = submissions.value.filter(item => {
                         if (!item.created_at) return false;
                         return item.created_at.split('T')[0] === activeServiceDate.value;
@@ -489,16 +482,13 @@
                         return;
                     }
 
-                    // Clean string escaping wrapper function for CSV standard matching format
                     const cleanCell = (text) => {
                         if (text === null || text === undefined) return '""';
                         let str = String(text).replace(/"/g, '""'); 
                         return `"${str}"`;
                     };
 
-                    // Define spreadsheet document row headers
                     const csvHeaders = ["Submission ID", "Timestamp", "Category", "Identifier Sub-Label", "Content Body", "Stage Requested?", "Executive Approved?"];
-                    
                     const csvRows = dayTargetRecords.map(r => [
                         cleanCell(r.id),
                         cleanCell(r.created_at),
@@ -510,14 +500,12 @@
                     ]);
 
                     const csvContent = [csvHeaders, ...csvRows].map(e => e.join(",")).join("\n");
-                    
-                    // Create direct automated file anchor download instance pipeline
                     const blobContext = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                     const objectUrl = URL.createObjectURL(blobContext);
                     const systemLink = document.createElement("a");
                     
                     systemLink.setAttribute("href", objectUrl);
-                    systemLink.setAttribute("download", `Fellowship_Submissions_${activeServiceDate.value}.csv`);
+                    systemLink.setAttribute("download", "Fellowship_Submissions_" + activeServiceDate.value + ".csv");
                     document.body.appendChild(systemLink);
                     
                     systemLink.click();
